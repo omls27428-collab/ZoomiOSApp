@@ -1,0 +1,76 @@
+<div class="camera-container">
+    <video id="video" autoplay playsinline></video>
+    <canvas id="outputCanvas"></canvas>
+</div>
+
+<div class="controls">
+    <div class="zoom-label">Зум: <span id="zoomValue">1.0</span>x</div>
+    <input type="range" id="zoomRange" min="1" max="30" step="0.5" value="1.0">
+    <button class="capture-btn" id="captureBtn"></button>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('outputCanvas');
+    const ctx = canvas.getContext('2d');
+    const zoomRange = document.getElementById('zoomRange');
+    const zoomValue = document.getElementById('zoomValue');
+    const captureBtn = document.getElementById('captureBtn');
+
+    let currentZoom = 1.0;
+
+    async function initCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                }
+            });
+            video.srcObject = stream;
+            await video.play();
+            requestAnimationFrame(renderLoop);
+        } catch (err) {
+            alert("Ошибка доступа к камере: " + err.message);
+        }
+    }
+
+    zoomRange.addEventListener('input', (e) => {
+        currentZoom = parseFloat(e.target.value);
+        zoomValue.textContent = currentZoom.toFixed(1);
+    });
+
+    function renderLoop() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            if (canvas.width !== video.videoWidth) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+            }
+
+            const w = video.videoWidth;
+            const h = video.videoHeight;
+
+            const cropW = w / currentZoom;
+            const cropH = h / currentZoom;
+            const startX = (w - cropW) / 2;
+            const startY = (h - cropH) / 2;
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.drawImage(video, startX, startY, cropW, cropH, 0, 0, w, h);
+        }
+        requestAnimationFrame(renderLoop);
+    }
+
+    captureBtn.addEventListener('click', () => {
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `zoom-photo-${currentZoom}x.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    });
+
+    initCamera();
+</script>
